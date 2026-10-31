@@ -1,0 +1,12 @@
+services:
+  answerly-server:
+    build:
+      context: ./server
+    ports:
+      - "8000:8000"
+    environment:
+      RELAY_API_KEYS: dev-api-key
+      RELAY_DEVICE_KEYS: android-1:dev-device-key
+      RELAY_DEVICE_IDS: android-1
+      RELAY_TASK_TIMEOUT_SECONDS: "120"
+

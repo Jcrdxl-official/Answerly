@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Runtime data
+server/data/
+*.db
+server/server.log
+server/server.log.err
+server/.server.pid
+
+# Android / Gradle
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+
+# Local toolchain
+.tools/
+
+# Build artifacts
+dist/

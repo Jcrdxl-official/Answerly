@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Answerly</string>
+
+    <string name="status_disconnected">未连接</string>
+    <string name="status_connecting">正在连接…</string>
+    <string name="status_connected">已连接，等待问题</string>
+    <string name="status_connect_failed">连接断开</string>
+    <string name="status_claiming">正在领取问题…</string>
+    <string name="status_answer_sent">回答已发送，等待问题</string>
+    <string name="status_task_taken">该问题已被领取或已失效</string>
+    <string name="status_waiting">已连接，等待问题</string>
+    <string name="task_new">收到新问题</string>
+    <string name="history_header">%1$s · %2$s · %3$d 轮</string>
+    <string name="history_preview">问：%1$s\n答：%2$s</string>
+
+    <string name="auto_reply_title">离线自动回复</string>
+    <string name="auto_reply_enable">客户端离线时启用自动回复</string>
+    <string name="auto_reply_content">自动回复内容</string>
+    <string name="auto_reply_saved">自动回复设置已保存</string>
+    <string name="save">保存设置</string>
+
+    <string name="pending_tasks">待回答问题</string>
+    <string name="chat_history">聊天记录</string>
+    <string name="refresh">刷新</string>
+    <string name="clear_all">清空</string>
+    <string name="loading">加载中…</string>
+    <string name="history_empty">暂无聊天记录</string>
+    <string name="history_count">共 %1$d 条记录</string>
+    <string name="history_need_key">请先在设置中填写设备密钥</string>
+    <string name="history_load_failed">加载失败：%1$s</string>
+    <string name="history_parse_failed">数据解析失败</string>
+    <string name="history_http_failed">加载失败：HTTP %1$d</string>
+    <string name="history_delete_failed">删除失败：%1$s</string>
+    <string name="history_clear_failed">清空失败：%1$s</string>
+
+    <string name="connection_settings">连接设置</string>
+    <string name="server_url">服务器 WebSocket 地址</string>
+    <string name="device_id">设备 ID</string>
+    <string name="device_key">设备密钥</string>
+    <string name="connect">连接设备</string>
+
+    <string name="appearance">外观</string>
+    <string name="monet_title">莫奈取色（跟随壁纸）</string>
+    <string name="monet_hint">Android 12 及以上可用，切换后自动重启界面</string>
+
+    <string name="nav_chat">聊天</string>
+    <string name="nav_settings">设置</string>
+
+    <string name="chat_title">聊天记录</string>
+    <string name="answer_hint">输入人工回答</string>
+    <string name="add_image">添加图片</string>
+    <string name="clear_images">清除图片</string>
+    <string name="raw">原文</string>
+    <string name="send_reply">发送回答</string>
+
+    <string name="connect_failed_title">连接失败</string>
+    <string name="connect_failed_message">无法连接到服务器，请检查服务器地址、设备 ID 与设备密钥是否正确，以及网络是否可用。</string>
+    <string name="connected_title">已连接</string>
+    <string name="connected_message">设备已成功连接到服务器，可以开始接收问题。</string>
+    <string name="ok">好的</string>
+
+    <string name="notification_title">通知</string>
+    <string name="notification_new_task">收到新问题时通知</string>
+    <string name="notification_disconnect">连接断开时通知</string>
+    <string name="notification_hint">仅在应用处于后台时提醒，前台不会打扰。</string>
+    <string name="notify_new_task_title">收到新问题</string>
+    <string name="notify_disconnect_title">连接已断开</string>
+    <string name="notify_disconnect_message">与服务器的连接已断开，请检查网络或重新连接。</string>
+    <string name="notify_channel_name">新问题与连接状态</string>
+    <string name="notify_channel_description">收到新问题或与服务器断开连接时提醒</string>
+
+    <string name="delete">删除</string>
+    <string name="cancel">取消</string>
+    <string name="delete_title">删除记录</string>
+    <string name="delete_message">删除后服务端保存的这条记录也会被移除，确定继续吗？</string>
+    <string name="clear_title">清空全部记录</string>
+    <string name="clear_message">将删除服务端保存的所有聊天记录，确定继续吗？</string>
+    <string name="view">查看</string>
+
+    <string name="source_auto">自动回复</string>
+    <string name="source_manual">人工回复</string>
+    <string name="unknown_time">未知时间</string>
+    <string name="turns">%1$d 轮</string>
+    <string name="image">[图片]</string>
+    <string name="image_decode_failed">图片无法解码</string>
+    <string name="image_invalid">图片编码无效</string>
+</resources>

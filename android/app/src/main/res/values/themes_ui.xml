@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Single Material 3 render style. -->
+    <style name="Theme.Answerly" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">?attr/colorSurface</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+    </style>
+
+    <!-- KernelSU-style left-aligned app wordmark in the toolbar. -->
+    <style name="TextAppearance.Answerly.ToolbarTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+</resources>
