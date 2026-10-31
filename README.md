@@ -2,6 +2,8 @@
 
 Answerly 是一个不接入外部模型的 MVP：OpenAI 兼容 API 接收请求，服务端通过 WebSocket 把请求转给已认证的 Android 客户端，用户手动输入回答后再返回兼容 OpenAI 的响应。
 
+> 本项目通过 **GitHub Copilot** 构建（服务端、Android 客户端、协议文档与测试均由 Copilot 生成并迭代）。
+
 ## 目录
 
 - `server/`：FastAPI 服务端
@@ -152,4 +154,14 @@ python -m pytest
 ```
 
 测试覆盖模型列表、API Key 鉴权、设备 WebSocket 认证、端到端非流式回答和任务超时。
+
+## 下载
+
+最新 APK 见 [Releases](https://github.com/Jcrdxl-official/Answerly/releases/latest)：
+
+- `Answerly-debug.apk`：debug 签名，可直接侧载安装（需允许「未知来源」）。
+
+## License
+
+[MIT](LICENSE) © 2026 Jcrdxl-official
 
