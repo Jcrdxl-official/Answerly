@@ -1,4 +1,4 @@
-package com.answerly.app
+﻿package com.answerly.app
 
 import android.Manifest
 import android.content.Intent
@@ -17,16 +17,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -39,11 +41,11 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_OPEN_TASK_ID = "open_task_id"
         private const val KEY_NOTIFY_NEW_TASK = "notify_new_task"
         private const val KEY_NOTIFY_DISCONNECT = "notify_disconnect"
+        private const val KEY_RELAY_ENABLED = "relay_enabled"
     }
 
     private val httpClient = OkHttpClient()
 
-    private var socket: WebSocket? = null
     private var selectedTaskId: String? = null
     private val tasks = linkedMapOf<String, JSONObject>()
     private lateinit var status: TextView
@@ -57,8 +59,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settingsPage: View
     private lateinit var notifyNewTaskSwitch: com.google.android.material.materialswitch.MaterialSwitch
     private lateinit var notifyDisconnectSwitch: com.google.android.material.materialswitch.MaterialSwitch
-    private val knownTaskIds = mutableSetOf<String>()
-    private var disconnectNotified = false
     private var pendingOpenTaskId: String? = null
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -84,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         Prefs.migrate(this)
         Monet.apply(this)
         setContentView(R.layout.activity_main)
+        applyEdgeToEdge(findViewById(R.id.rootLayout))
         status = findViewById(R.id.statusText)
         taskList = findViewById(R.id.taskList)
         historyContainer = findViewById(R.id.historyContainer)
@@ -97,7 +98,9 @@ class MainActivity : AppCompatActivity() {
         notifyDisconnectSwitch = findViewById(R.id.notifyDisconnectSwitch)
         loadPreferences()
         setupNotifications()
+        observeRelay()
         handleOpenTaskIntent(intent)
+        startRelayIfConfigured()
 
         findViewById<Button>(R.id.connectButton).setOnClickListener {
             connect(
@@ -108,7 +111,11 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.saveAutoReplyButton).setOnClickListener {
             savePreferences()
-            socket?.let { sendAutoReplyConfig(it) }
+            ServiceRelay.updateAutoReply(
+                this,
+                autoReplyEnabled.isChecked,
+                autoReplyInput.text.toString()
+            )
             status.text = getString(R.string.auto_reply_saved)
         }
         findViewById<Button>(R.id.refreshHistoryButton).setOnClickListener { loadHistory() }
@@ -130,7 +137,57 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
+        findViewById<Button>(R.id.batteryOptimizationButton).setOnClickListener {
+            requestIgnoreBatteryOptimizations()
+        }
+        findViewById<Button>(R.id.autostartButton).setOnClickListener {
+            openAutostartSettings()
+        }
+
         loadHistory()
+    }
+
+    private fun requestIgnoreBatteryOptimizations() {
+        val manager = getSystemService(android.os.PowerManager::class.java)
+        if (manager?.isIgnoringBatteryOptimizations(packageName) == true) {
+            status.text = getString(R.string.background_battery_done)
+            return
+        }
+        val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            .setData(android.net.Uri.parse("package:$packageName"))
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
+    }
+
+    private fun openAutostartSettings() {
+        val candidates = listOf(
+            "com.miui.securitycenter/com.miui.permcenter.autostart.AutoStartManagementActivity",
+            "com.huawei.systemmanager/.startupmgr.ui.StartupNormalAppListActivity",
+            "com.coloros.safecenter/.permission.startup.StartupAppListActivity",
+            "com.vivo.permissionmanager/.activity.BgStartUpManagerActivity",
+            "com.samsung.android.lool/.activity.BatteryActivity"
+        )
+        for (name in candidates) {
+            val parts = name.split("/")
+            val intent = Intent().setClassName(parts[0], parts[1])
+            if (packageManager.resolveActivity(intent, 0) != null) {
+                try {
+                    startActivity(intent)
+                    return
+                } catch (_: Exception) {
+                    // try the next vendor entry point
+                }
+            }
+        }
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(android.net.Uri.parse("package:$packageName")))
+        } catch (_: Exception) {
+            status.text = getString(R.string.background_autostart_missing)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -141,111 +198,63 @@ class MainActivity : AppCompatActivity() {
 
     private fun connect(url: String, deviceId: String, deviceKey: String) {
         savePreferences()
-        socket?.close(1000, "reconnecting")
-        val request = Request.Builder()
-            .url("$url?device_id=${java.net.URLEncoder.encode(deviceId, "UTF-8")}")
-            .header("X-Device-Key", deviceKey)
-            .build()
+        preferences.edit().putBoolean(KEY_RELAY_ENABLED, true).apply()
         status.text = getString(R.string.status_connecting)
-        socket = httpClient.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                sendAutoReplyConfig(webSocket)
-                runOnUiThread {
-                    status.text = getString(R.string.status_connected)
-                    Notifications.cancelDisconnected(this@MainActivity)
-                    disconnectNotified = false
-                    showConnectedDialog()
-                }
-            }
+        ServiceRelay.connect(this, url, deviceId, deviceKey)
+    }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                val message = JSONObject(text)
-                when (message.optString("type")) {
-                    "task_available" -> {
-                        val incoming = message.optJSONArray("tasks")
-                        val fresh = mutableListOf<JSONObject>()
-                        this@MainActivity.tasks.clear()
-                        if (incoming != null) {
-                            for (index in 0 until incoming.length()) {
-                                val task = incoming.getJSONObject(index)
-                                val id = task.getString("task_id")
-                                this@MainActivity.tasks[id] = task
-                                if (knownTaskIds.add(id)) fresh.add(task)
+    private fun startRelayIfConfigured() {
+        if (!preferences.getBoolean(KEY_RELAY_ENABLED, false)) return
+        val url = preferences.getString("url", "").orEmpty()
+        val deviceId = preferences.getString("device_id", "").orEmpty()
+        val key = preferences.getString("device_key", "").orEmpty()
+        if (url.isEmpty() || key.isEmpty()) return
+        ServiceRelay.connect(this, url, deviceId, key)
+    }
+
+    private fun observeRelay() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    RelayState.status.collect { value ->
+                        status.text = when (value) {
+                            RelayState.Status.DISCONNECTED -> getString(R.string.status_disconnected)
+                            RelayState.Status.CONNECTING -> getString(R.string.status_connecting)
+                            RelayState.Status.CONNECTED -> getString(R.string.status_waiting)
+                        }
+                    }
+                }
+                launch {
+                    RelayState.tasks.collect { list ->
+                        tasks.clear()
+                        list.forEach { tasks[it.optString("task_id")] = it }
+                        renderTasks()
+                        openPendingTaskIfReady()
+                    }
+                }
+                launch {
+                    RelayState.events.collect { event ->
+                        when (event) {
+                            is RelayState.Event.TaskClaimed -> {
+                                val task = tasks[event.taskId] ?: return@collect
+                                status.text = getString(R.string.status_claiming)
+                                chatLauncher.launch(
+                                    Intent(this@MainActivity, ChatActivity::class.java)
+                                        .putExtra(ChatActivity.EXTRA_TASK_ID, event.taskId)
+                                        .putExtra(ChatActivity.EXTRA_TASK, task.toString())
+                                )
                             }
-                        }
-                        runOnUiThread {
-                            renderTasks()
-                            openPendingTaskIfReady()
-                            if (!AppState.isForeground) {
-                                fresh.forEach { notifyNewTask(it) }
+                            RelayState.Event.TaskUnavailable -> {
+                                selectedTaskId = null
+                                status.text = getString(R.string.status_task_taken)
+                                renderTasks()
                             }
+                            RelayState.Event.HistoryChanged -> loadHistory()
                         }
                     }
-                    "task_claimed" -> {
-                        val task = selectedTaskId?.let { this@MainActivity.tasks[it] } ?: return
-                        runOnUiThread {
-                            status.text = getString(R.string.status_claiming)
-                            chatLauncher.launch(
-                                Intent(this@MainActivity, ChatActivity::class.java)
-                                    .putExtra(ChatActivity.EXTRA_TASK_ID, task.getString("task_id"))
-                                    .putExtra(ChatActivity.EXTRA_TASK, task.toString())
-                            )
-                        }
-                    }
-                    "task_unavailable" -> {
-                        runOnUiThread {
-                            selectedTaskId = null
-                            status.text = getString(R.string.status_task_taken)
-                            renderTasks()
-                        }
-                    }
-                    "history_deleted", "history_cleared" -> runOnUiThread { loadHistory() }
                 }
             }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                runOnUiThread {
-                    selectedTaskId = null
-                    status.text = getString(R.string.status_connect_failed)
-                    showConnectFailedDialog(t.message ?: response?.message ?: "")
-                    notifyDisconnected(t.message ?: response?.message ?: "")
-                }
-            }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                runOnUiThread {
-                    status.text = getString(R.string.status_disconnected)
-                    if (code != 1000) notifyDisconnected(reason)
-                }
-            }
-        })
-    }
-
-    private fun showConnectedDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.connected_title)
-            .setMessage(R.string.connected_message)
-            .setPositiveButton(R.string.ok, null)
-            .show()
-    }
-
-    private fun showConnectFailedDialog(reason: String) {
-        if (isFinishing || isDestroyed) return
-        AlertDialog.Builder(this)
-            .setTitle(R.string.connect_failed_title)
-            .setMessage(getString(R.string.connect_failed_message) + "\n\n" + reason)
-            .setPositiveButton(R.string.ok, null)
-            .show()
-    }
-
-    private fun sendAutoReplyConfig(webSocket: WebSocket) {
-        webSocket.send(
-            JSONObject()
-                .put("type", "auto_reply_config")
-                .put("enabled", autoReplyEnabled.isChecked)
-                .put("content", autoReplyInput.text.toString())
-                .toString()
-        )
+        }
     }
 
     private fun loadPreferences() {
@@ -303,21 +312,11 @@ class MainActivity : AppCompatActivity() {
         if (selectedTaskId != null) return
         selectedTaskId = taskId
         status.text = getString(R.string.status_claiming)
-        socket?.send(JSONObject().put("type", "task_claim").put("task_id", taskId).toString())
+        ServiceRelay.claim(this, taskId)
     }
 
     private fun sendTaskResult(taskId: String, content: String) {
-        val resultContent: Any = try {
-            JSONArray(content)
-        } catch (_: Exception) {
-            content
-        }
-        val payload = JSONObject()
-            .put("type", "task_result")
-            .put("task_id", taskId)
-            .put("content", resultContent)
-            .put("finish_reason", "stop")
-        socket?.send(payload.toString())
+        ServiceRelay.sendResult(this, taskId, content)
         Notifications.cancelTask(this, taskId)
         selectedTaskId = null
         tasks.remove(taskId)
@@ -571,16 +570,7 @@ class MainActivity : AppCompatActivity() {
         Notifications.notifyNewTask(this, taskId, taskSummary(task))
     }
 
-    private fun notifyDisconnected(reason: String) {
-        if (!preferences.getBoolean(KEY_NOTIFY_DISCONNECT, true)) return
-        if (disconnectNotified) return
-        disconnectNotified = true
-        Notifications.notifyDisconnected(this, reason)
-    }
-
-
     override fun onDestroy() {
-        socket?.close(1000, "activity closed")
         httpClient.dispatcher.executorService.shutdown()
         super.onDestroy()
     }

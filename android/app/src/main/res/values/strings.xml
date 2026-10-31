@@ -70,6 +70,21 @@
     <string name="notify_channel_name">新问题与连接状态</string>
     <string name="notify_channel_description">收到新问题或与服务器断开连接时提醒</string>
 
+    <string name="service_channel_name">后台连接</string>
+    <string name="service_channel_description">保持与服务器的连接，以便在后台接收新问题</string>
+    <string name="service_notification_title">Answerly 正在后台接收问题</string>
+    <string name="service_notification_connecting">正在连接服务器…</string>
+    <string name="service_notification_connected">已连接，等待新问题</string>
+    <string name="service_notification_disconnected">连接已断开，正在重试…</string>
+    <string name="service_notification_stop">断开连接</string>
+
+    <string name="background_title">后台保活</string>
+    <string name="background_hint">部分系统会在应用被划掉后限制后台运行。请允许后台运行并关闭电池优化，否则可能收不到通知。</string>
+    <string name="background_battery">关闭电池优化</string>
+    <string name="background_autostart">打开自启动设置</string>
+    <string name="background_battery_done">已关闭电池优化</string>
+    <string name="background_autostart_missing">未找到自启动设置，请在系统设置中手动允许后台运行</string>
+
     <string name="delete">删除</string>
     <string name="cancel">取消</string>
     <string name="delete_title">删除记录</string>

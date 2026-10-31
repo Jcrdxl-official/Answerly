@@ -41,6 +41,7 @@ class ChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Monet.apply(this)
         setContentView(R.layout.activity_chat)
+        applyEdgeToEdge(findViewById(R.id.chatRoot))
         task = JSONObject(intent.getStringExtra(EXTRA_TASK) ?: "{}")
         answer = findViewById(R.id.answerInput)
         chatContainer = findViewById(R.id.chatContainer)

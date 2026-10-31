@@ -1,5 +1,6 @@
 package com.answerly.app
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -18,22 +19,64 @@ import androidx.core.app.NotificationManagerCompat
  */
 object Notifications {
     const val CHANNEL_ID = "answerly_tasks"
+    const val SERVICE_CHANNEL_ID = "answerly_service"
 
+    const val ID_SERVICE = 1000
     private const val ID_DISCONNECTED = 1001
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.notify_channel_name),
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = context.getString(R.string.notify_channel_description)
-            enableVibration(true)
+        if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                context.getString(R.string.notify_channel_name),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = context.getString(R.string.notify_channel_description)
+                enableVibration(true)
+            }
+            manager.createNotificationChannel(channel)
         }
-        manager.createNotificationChannel(channel)
+        if (manager.getNotificationChannel(SERVICE_CHANNEL_ID) == null) {
+            val serviceChannel = NotificationChannel(
+                SERVICE_CHANNEL_ID,
+                context.getString(R.string.service_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = context.getString(R.string.service_channel_description)
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    fun buildServiceNotification(context: Context, text: String): Notification {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pending = PendingIntent.getActivity(
+            context,
+            ID_SERVICE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val stopIntent = PendingIntent.getService(
+            context,
+            ID_SERVICE + 1,
+            Intent(context, ServiceRelay::class.java).setAction(ServiceRelay.ACTION_DISCONNECT),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        return NotificationCompat.Builder(context, SERVICE_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.service_notification_title))
+            .setContentText(text)
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(pending)
+            .addAction(0, context.getString(R.string.service_notification_stop), stopIntent)
+            .build()
     }
 
     fun notifyNewTask(context: Context, taskId: String, summary: String) {
